@@ -2,14 +2,31 @@ package com.ashleyfae.activityreminders
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = PreferencesManager(application)
     private val scheduler = AlarmScheduler(application)
+    private val hcManager = HealthConnectManager(application)
+
+    private val _stepsLastHour = MutableStateFlow<Long?>(null)
+    val stepsLastHour: StateFlow<Long?> = _stepsLastHour
+
+    fun refreshSteps() {
+        viewModelScope.launch {
+            _stepsLastHour.value = try {
+                if (hcManager.isAvailable() && hcManager.hasPermission()) hcManager.getStepsLastHour()
+                else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
 
     private val _isEnabled = MutableStateFlow(prefs.isEnabled)
     val isEnabled: StateFlow<Boolean> = _isEnabled

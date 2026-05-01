@@ -86,6 +86,7 @@ fun MainScreen(
     val startHour by viewModel.startHour.collectAsState()
     val endHour by viewModel.endHour.collectAsState()
     val stepThreshold by viewModel.stepThreshold.collectAsState()
+    val stepsLastHour by viewModel.stepsLastHour.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -100,14 +101,16 @@ fun MainScreen(
         hasHcPermission = hc.hasPermission()
     }
 
-    // Recompute next reminder text at each minute boundary
+    // Recompute next reminder text and step count at each minute boundary
     var currentMinute by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.MINUTE)) }
     LaunchedEffect(Unit) {
+        viewModel.refreshSteps()
         while (true) {
             val now = Calendar.getInstance()
             val msUntilNextMinute = (60 - now.get(Calendar.SECOND)) * 1000L - now.get(Calendar.MILLISECOND)
             delay(msUntilNextMinute.coerceAtLeast(100L))
             currentMinute = Calendar.getInstance().get(Calendar.MINUTE)
+            viewModel.refreshSteps()
         }
     }
 
@@ -118,6 +121,7 @@ fun MainScreen(
                 hasExactAlarmPermission = checkExactAlarmPermission(context)
                 isHcAvailable = hc.isAvailable()
                 scope.launch { hasHcPermission = hc.hasPermission() }
+                viewModel.refreshSteps()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -235,6 +239,7 @@ fun MainScreen(
             Spacer(Modifier.height(12.dp))
             StepThresholdCard(
                 threshold = stepThreshold,
+                currentSteps = stepsLastHour,
                 onThresholdChange = { viewModel.setStepThreshold(it) }
             )
         }
@@ -300,7 +305,7 @@ fun MainScreen(
 }
 
 @Composable
-fun StepThresholdCard(threshold: Int, onThresholdChange: (Int) -> Unit) {
+fun StepThresholdCard(threshold: Int, currentSteps: Long?, onThresholdChange: (Int) -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -344,6 +349,20 @@ fun StepThresholdCard(threshold: Int, onThresholdChange: (Int) -> Unit) {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (currentSteps != null) {
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("This hour  ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "$currentSteps steps",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (currentSteps < threshold) Emerald500 else Slate400
+                    )
+                }
+            }
         }
     }
 }

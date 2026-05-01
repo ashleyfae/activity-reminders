@@ -7,6 +7,8 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 class HealthConnectManager(private val context: Context) {
 
@@ -21,17 +23,22 @@ class HealthConnectManager(private val context: Context) {
         return READ_STEPS in granted
     }
 
+    suspend fun getStepsLastHour(): Long {
+        val now = Instant.now()
+        val topOfHour = ZonedDateTime.now().truncatedTo(ChronoUnit.HOURS).toInstant()
+        val response = client.aggregate(
+            AggregateRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(topOfHour, now)
+            )
+        )
+        return response[StepsRecord.COUNT_TOTAL] ?: 0L
+    }
+
     suspend fun shouldAlert(threshold: Int): Boolean {
         if (!isAvailable() || !hasPermission()) return true
         return try {
-            val now = Instant.now()
-            val response = client.aggregate(
-                AggregateRequest(
-                    metrics = setOf(StepsRecord.COUNT_TOTAL),
-                    timeRangeFilter = TimeRangeFilter.between(now.minusSeconds(3600), now)
-                )
-            )
-            (response[StepsRecord.COUNT_TOTAL] ?: 0L) < threshold
+            getStepsLastHour() < threshold
         } catch (e: Exception) {
             true
         }
