@@ -1,6 +1,8 @@
 package com.ashleyfae.activityreminders
 
 import android.Manifest
+import java.util.Calendar
+import kotlinx.coroutines.delay
 import android.app.AlarmManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -96,6 +98,17 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         hasHcPermission = hc.hasPermission()
+    }
+
+    // Recompute next reminder text at each minute boundary
+    var currentMinute by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.MINUTE)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = Calendar.getInstance()
+            val msUntilNextMinute = (60 - now.get(Calendar.SECOND)) * 1000L - now.get(Calendar.MILLISECOND)
+            delay(msUntilNextMinute.coerceAtLeast(100L))
+            currentMinute = Calendar.getInstance().get(Calendar.MINUTE)
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -228,13 +241,12 @@ fun MainScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Next reminder hint
+        // Next reminder hint — keyed on currentMinute so it recomputes at :00 of each minute
         if (isEnabled) {
-            Text(
-                text = viewModel.nextReminderText(startHour, endHour),
-                fontSize = 13.sp,
-                color = Slate400
-            )
+            val nextReminderText = remember(startHour, endHour, currentMinute) {
+                viewModel.nextReminderText(startHour, endHour)
+            }
+            Text(text = nextReminderText, fontSize = 13.sp, color = Slate400)
         }
 
         Spacer(Modifier.weight(1f))
