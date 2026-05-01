@@ -20,9 +20,14 @@ class PreferencesManager(context: Context) {
         get() = prefs.getInt(KEY_END_HOUR, 16)
         set(value) = prefs.edit { putInt(KEY_END_HOUR, value) }
 
+    var stepThreshold: Int
+        get() = prefs.getInt(KEY_STEP_THRESHOLD, 250)
+        set(value) = prefs.edit { putInt(KEY_STEP_THRESHOLD, value) }
+
     companion object {
         private const val KEY_ENABLED = "enabled"
         private const val KEY_START_HOUR = "start_hour"
         private const val KEY_END_HOUR = "end_hour"
+        private const val KEY_STEP_THRESHOLD = "step_threshold"
     }
 }

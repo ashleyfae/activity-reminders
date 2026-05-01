@@ -20,6 +20,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _endHour = MutableStateFlow(prefs.endHour)
     val endHour: StateFlow<Int> = _endHour
 
+    private val _stepThreshold = MutableStateFlow(prefs.stepThreshold)
+    val stepThreshold: StateFlow<Int> = _stepThreshold
+
     fun setEnabled(enabled: Boolean) {
         prefs.isEnabled = enabled
         _isEnabled.value = enabled
@@ -36,6 +39,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         prefs.endHour = hour
         _endHour.value = hour
         if (prefs.isEnabled) scheduler.schedule()
+    }
+
+    fun setStepThreshold(value: Int) {
+        val clamped = value.coerceIn(50, 2000)
+        prefs.stepThreshold = clamped
+        _stepThreshold.value = clamped
     }
 
     fun nextReminderText(startHour: Int, endHour: Int): String {

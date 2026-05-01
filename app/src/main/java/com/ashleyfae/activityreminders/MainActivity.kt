@@ -28,9 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ashleyfae.activityreminders.ui.theme.*
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -38,6 +41,10 @@ class MainActivity : ComponentActivity() {
 
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
+    ) { /* recomposition handles state refresh via onResume check */ }
+
+    private val requestHcPermissions = registerForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
     ) { /* recomposition handles state refresh via onResume check */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +62,9 @@ class MainActivity : ComponentActivity() {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
                         }
+                    },
+                    onRequestHcPermission = {
+                        requestHcPermissions.launch(HealthConnectManager.PERMISSIONS)
                     }
                 )
             }
@@ -67,22 +77,34 @@ fun MainScreen(
     viewModel: MainViewModel,
     onRequestNotifPermission: () -> Unit,
     onRequestExactAlarmPermission: () -> Unit,
+    onRequestHcPermission: () -> Unit,
 ) {
     val context = LocalContext.current
     val isEnabled by viewModel.isEnabled.collectAsState()
     val startHour by viewModel.startHour.collectAsState()
     val endHour by viewModel.endHour.collectAsState()
+    val stepThreshold by viewModel.stepThreshold.collectAsState()
 
-    // Re-check permissions whenever we return from background
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    val hc = remember { HealthConnectManager(context) }
+
     var hasNotifPermission by remember { mutableStateOf(checkNotifPermission(context)) }
     var hasExactAlarmPermission by remember { mutableStateOf(checkExactAlarmPermission(context)) }
+    var isHcAvailable by remember { mutableStateOf(hc.isAvailable()) }
+    var hasHcPermission by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        hasHcPermission = hc.hasPermission()
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasNotifPermission = checkNotifPermission(context)
                 hasExactAlarmPermission = checkExactAlarmPermission(context)
+                isHcAvailable = hc.isAvailable()
+                scope.launch { hasHcPermission = hc.hasPermission() }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -195,6 +217,15 @@ fun MainScreen(
             }
         }
 
+        // Step threshold card — only shown when Health Connect is available
+        if (isHcAvailable) {
+            Spacer(Modifier.height(12.dp))
+            StepThresholdCard(
+                threshold = stepThreshold,
+                onThresholdChange = { viewModel.setStepThreshold(it) }
+            )
+        }
+
         Spacer(Modifier.height(14.dp))
 
         // Next reminder hint
@@ -223,6 +254,14 @@ fun MainScreen(
                 actionLabel = "Allow",
                 onClick = onRequestNotifPermission
             )
+            Spacer(Modifier.height(8.dp))
+        }
+        if (isHcAvailable && !hasHcPermission) {
+            PermissionBanner(
+                message = "Grant Health Connect access to enable step-based filtering",
+                actionLabel = "Grant",
+                onClick = onRequestHcPermission
+            )
         }
     }
 
@@ -245,6 +284,69 @@ fun MainScreen(
                 showEndPicker = false
             }
         )
+    }
+}
+
+@Composable
+fun StepThresholdCard(threshold: Int, onThresholdChange: (Int) -> Unit) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+            Text(
+                "STEP THRESHOLD",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                StepperButton(label = "−") {
+                    onThresholdChange((threshold - 50).coerceAtLeast(50))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$threshold",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "steps",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                StepperButton(label = "+") {
+                    onThresholdChange((threshold + 50).coerceAtMost(2000))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Alert only if steps in the past hour are below this",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun StepperButton(label: String, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+    ) {
+        Text(label, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
