@@ -20,7 +20,7 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasPermission(): Boolean {
         if (!isAvailable()) return false
         val granted = client.permissionController.getGrantedPermissions()
-        return READ_STEPS in granted
+        return READ_STEPS in granted && READ_HEALTH_DATA_IN_BACKGROUND in granted
     }
 
     suspend fun getStepsLastHour(): Long {
@@ -47,6 +47,8 @@ class HealthConnectManager(private val context: Context) {
     companion object {
         const val PROVIDER_PACKAGE_NAME = "com.google.android.apps.healthdata"
         val READ_STEPS = HealthPermission.getReadPermission(StepsRecord::class)
-        val PERMISSIONS = setOf(READ_STEPS)
+        const val READ_HEALTH_DATA_IN_BACKGROUND =
+            "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+        val PERMISSIONS = setOf(READ_STEPS, READ_HEALTH_DATA_IN_BACKGROUND)
     }
 }
