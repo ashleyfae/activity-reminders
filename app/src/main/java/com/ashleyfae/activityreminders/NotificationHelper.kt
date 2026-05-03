@@ -17,11 +17,16 @@ class NotificationHelper(private val context: Context) {
         createChannel()
     }
 
-    fun showReminder() {
+    fun showReminder(remainingSteps: Long? = null) {
+        val body = if (remainingSteps != null) {
+            "You've been sitting a while — take $remainingSteps more steps to hit your goal."
+        } else {
+            "You've been sitting a while — get up and stretch."
+        }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Time to move!")
-            .setContentText("You've been sitting a while — get up and stretch.")
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()

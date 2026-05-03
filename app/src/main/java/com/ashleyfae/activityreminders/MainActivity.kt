@@ -87,6 +87,7 @@ fun MainScreen(
     val endHour by viewModel.endHour.collectAsState()
     val stepThreshold by viewModel.stepThreshold.collectAsState()
     val stepsLastHour by viewModel.stepsLastHour.collectAsState()
+    val stepsLastUpdated by viewModel.stepsLastUpdated.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -240,6 +241,7 @@ fun MainScreen(
             StepThresholdCard(
                 threshold = stepThreshold,
                 currentSteps = stepsLastHour,
+                stepsLastUpdated = stepsLastUpdated,
                 onThresholdChange = { viewModel.setStepThreshold(it) }
             )
         }
@@ -305,7 +307,7 @@ fun MainScreen(
 }
 
 @Composable
-fun StepThresholdCard(threshold: Int, currentSteps: Long?, onThresholdChange: (Int) -> Unit) {
+fun StepThresholdCard(threshold: Int, currentSteps: Long?, stepsLastUpdated: String?, onThresholdChange: (Int) -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -358,14 +360,24 @@ fun StepThresholdCard(threshold: Int, currentSteps: Long?, onThresholdChange: (I
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("This hour  ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            "$currentSteps steps",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (currentSteps < threshold) Slate400 else Emerald500
-                        )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("This hour  ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "$currentSteps steps",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (currentSteps < threshold) Slate400 else Emerald500
+                            )
+                        }
+                        if (stepsLastUpdated != null) {
+                            Text(
+                                "Updated $stepsLastUpdated",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
                     if (currentSteps >= threshold) {
                         Box(

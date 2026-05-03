@@ -17,11 +17,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _stepsLastHour = MutableStateFlow<Long?>(null)
     val stepsLastHour: StateFlow<Long?> = _stepsLastHour
 
+    private val _stepsLastUpdated = MutableStateFlow<String?>(null)
+    val stepsLastUpdated: StateFlow<String?> = _stepsLastUpdated
+
     fun refreshSteps() {
         viewModelScope.launch {
             _stepsLastHour.value = try {
-                if (hcManager.isAvailable() && hcManager.hasPermission()) hcManager.getStepsLastHour()
-                else null
+                if (hcManager.isAvailable() && hcManager.hasPermission()) {
+                    val steps = hcManager.getStepsLastHour()
+                    val now = Calendar.getInstance()
+                    _stepsLastUpdated.value = formatHour(now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))
+                    steps
+                } else null
             } catch (e: Exception) {
                 null
             }

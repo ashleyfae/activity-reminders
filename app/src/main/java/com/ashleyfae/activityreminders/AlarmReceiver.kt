@@ -16,8 +16,14 @@ class AlarmReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
-                val shouldAlert = HealthConnectManager(context).shouldAlert(prefs.stepThreshold)
-                if (shouldAlert) NotificationHelper(context).showReminder()
+                val hc = HealthConnectManager(context)
+                if (hc.isAvailable() && hc.hasPermission()) {
+                    val steps = hc.getStepsLastHour()
+                    val remaining = prefs.stepThreshold - steps
+                    if (remaining > 0) NotificationHelper(context).showReminder(remaining)
+                } else {
+                    NotificationHelper(context).showReminder()
+                }
             } catch (e: Exception) {
                 NotificationHelper(context).showReminder()
             } finally {
